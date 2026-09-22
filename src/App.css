@@ -317,6 +317,13 @@
   color: var(--ink-faint);
 }
 
+.prompt-error {
+  grid-column: 1 / -1;
+  color: var(--danger);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
 .btn-generate {
   height: 52px;
   padding: 0 24px;
