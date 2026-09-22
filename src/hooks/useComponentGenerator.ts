@@ -1,8 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { GeneratedComponent, Provider } from '../types';
+import { addPromptToHistory, parseJSON, reviveComponentDates, STORAGE_KEYS } from '../utils/storage';
 
 interface UseComponentGeneratorReturn {
   components: GeneratedComponent[];
+  promptHistory: string[];
   isLoading: boolean;
   error: string | null;
   generate: (prompt: string, apiKey: string | undefined, provider: Provider) => Promise<void>;
@@ -11,9 +13,30 @@ interface UseComponentGeneratorReturn {
 }
 
 export function useComponentGenerator(): UseComponentGeneratorReturn {
-  const [components, setComponents] = useState<GeneratedComponent[]>([]);
+  const [components, setComponents] = useState<GeneratedComponent[]>(() =>
+    reviveComponentDates(parseJSON(localStorage.getItem(STORAGE_KEYS.components), []))
+  );
+  const [promptHistory, setPromptHistory] = useState<string[]>(() =>
+    parseJSON(localStorage.getItem(STORAGE_KEYS.promptHistory), [])
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.components, JSON.stringify(components));
+    } catch {
+      // localStorage 접근 불가(비공개 모드, 용량 초과 등)는 무시하고 계속 진행한다
+    }
+  }, [components]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.promptHistory, JSON.stringify(promptHistory));
+    } catch {
+      // localStorage 접근 불가(비공개 모드, 용량 초과 등)는 무시하고 계속 진행한다
+    }
+  }, [promptHistory]);
 
   const generate = useCallback(async (prompt: string, apiKey: string | undefined, provider: Provider) => {
     setIsLoading(true);
@@ -40,6 +63,7 @@ export function useComponentGenerator(): UseComponentGeneratorReturn {
       };
 
       setComponents((prev) => [newComponent, ...prev]);
+      setPromptHistory((prev) => addPromptToHistory(prev, prompt));
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
@@ -56,5 +80,5 @@ export function useComponentGenerator(): UseComponentGeneratorReturn {
     setComponents([]);
   }, []);
 
-  return { components, isLoading, error, generate, removeComponent, clearAll };
+  return { components, promptHistory, isLoading, error, generate, removeComponent, clearAll };
 }
