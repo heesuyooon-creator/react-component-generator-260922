@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { PromptInput } from './components/PromptInput';
 import { ComponentCard } from './components/ComponentCard';
 import { useComponentGenerator } from './hooks/useComponentGenerator';
+import { parseJSON, STORAGE_KEYS } from './utils/storage';
 import type { Provider } from './types';
 import './App.css';
 
@@ -11,14 +12,18 @@ const PROVIDER_CONFIG = {
 } as const;
 
 function App() {
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(() =>
+    parseJSON(localStorage.getItem(STORAGE_KEYS.apiKey), '')
+  );
   const [showKey, setShowKey] = useState(false);
-  const [provider, setProvider] = useState<Provider>('google');
+  const [provider, setProvider] = useState<Provider>(() =>
+    parseJSON(localStorage.getItem(STORAGE_KEYS.provider), 'google' as Provider)
+  );
   const [envKeys, setEnvKeys] = useState<Record<Provider, boolean>>({
     anthropic: false,
     google: false,
   });
-  const { components, isLoading, error, generate, removeComponent, clearAll } =
+  const { components, promptHistory, isLoading, error, generate, removeComponent, clearAll } =
     useComponentGenerator();
 
   useEffect(() => {
@@ -27,6 +32,22 @@ function App() {
       .then((data) => setEnvKeys(data.envKeys))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.apiKey, JSON.stringify(apiKey));
+    } catch {
+      // localStorage 접근 불가(비공개 모드, 용량 초과 등)는 무시하고 계속 진행한다
+    }
+  }, [apiKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.provider, JSON.stringify(provider));
+    } catch {
+      // localStorage 접근 불가(비공개 모드, 용량 초과 등)는 무시하고 계속 진행한다
+    }
+  }, [provider]);
 
   const hasEnvKey = envKeys[provider];
 
@@ -71,7 +92,7 @@ function App() {
 
       <main className="workspace">
         <section className="composer-panel" aria-label="컴포넌트 생성">
-          <PromptInput onGenerate={handleGenerate} isLoading={isLoading} />
+          <PromptInput onGenerate={handleGenerate} isLoading={isLoading} history={promptHistory} />
         </section>
 
         <aside className="settings-panel" aria-label="실행 설정">
